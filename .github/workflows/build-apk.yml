@@ -39,7 +39,7 @@ jobs:
         run: |
           python3 apply_patches.py
           printf '%s' "$GSJ" > android/app/google-services.json
-          echo "$KS_B64" | base64 -d > android/focusfamily-release.jks
+          echo "$KS_B64" | tr -d '[:space:]' | base64 -d > android/focusfamily-release.jks
           {
             echo "storePassword=$KS_PASS"
             echo "keyPassword=$KS_PASS"
