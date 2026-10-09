@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function parentOf(childUid) {
+      return exists(/databases/$(database)/documents/children/$(childUid)) &&
+        get(/databases/$(database)/documents/children/$(childUid)).data.parentUid == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /invites/{inviteId} {
+      allow create: if signedIn()
+        && request.resource.data.parentUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow read: if signedIn()
+        && (resource.data.parentUid == request.auth.uid
+            || resource.data.childEmail == myEmail());
+      allow update: if signedIn()
+        && resource.data.childEmail == myEmail()
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'linked'
+        && request.resource.data.parentUid == resource.data.parentUid;
+      allow delete: if signedIn() && resource.data.parentUid == request.auth.uid;
+    }
+
+    match /children/{childUid} {
+      allow read: if signedIn()
+        && (request.auth.uid == childUid || resource.data.parentUid == request.auth.uid);
+      allow create: if signedIn()
+        && request.auth.uid == childUid
+        && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteId))
+        && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.childEmail == myEmail()
+        && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.parentUid == request.resource.data.parentUid;
+      allow delete: if signedIn() && resource.data.parentUid == request.auth.uid;
+    }
+
+    match /rules/{childUid} {
+      allow read: if signedIn() && (request.auth.uid == childUid || parentOf(childUid));
+      allow write: if signedIn() && parentOf(childUid);
+    }
+
+    match /devices/{childUid} {
+      allow read: if signedIn() && (request.auth.uid == childUid || parentOf(childUid));
+      allow create, update: if signedIn() && request.auth.uid == childUid
+        && exists(/databases/$(database)/documents/children/$(childUid));
+      allow delete: if signedIn() && parentOf(childUid);
+    }
+
+    match /usage/{childUid} {
+      allow read: if signedIn() && (request.auth.uid == childUid || parentOf(childUid));
+      allow create, update: if signedIn() && request.auth.uid == childUid
+        && exists(/databases/$(database)/documents/children/$(childUid));
+      allow delete: if signedIn() && parentOf(childUid);
+    }
+
+    match /requests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.childUid == request.auth.uid
+        && request.resource.data.parentUid ==
+           get(/databases/$(database)/documents/children/$(request.auth.uid)).data.parentUid;
+      allow read: if signedIn()
+        && (resource.data.parentUid == request.auth.uid
+            || resource.data.childUid == request.auth.uid);
+      allow update, delete: if signedIn() && resource.data.parentUid == request.auth.uid;
+    }
+  }
+}

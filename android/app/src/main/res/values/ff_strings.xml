@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ff_accessibility_description">FocusFamily uses this to detect which app or website is open on this phone, so the limits set by your parent can be applied. It does not read messages or passwords, and nothing you type or see is sent anywhere.</string>
+</resources>
